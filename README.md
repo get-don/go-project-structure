@@ -95,16 +95,16 @@ mygame/
  │    │    ├── http/            # REST API (로그인, 회원가입 등)
  │    │    └── ws/              # WebSocket/GRPC (게임 통신)
  │    │
- │    ├── app/                  # 게임 도메인 로직 (핵심)
- │    │    ├── account/         # 계정/인증 도메인
- │    │    ├── lobby/           # 로비/매치메이킹
- │    │    ├── room/            # 룸/세션 관리
- │    │    └── battle/          # 전투/게임플레이 로직
+ │    ├── app/                  
+ │    │    └── application.go  (조립/런처)
  │    │
  │    ├── service/              # 도메인 서비스 (비즈니스 규칙)
- │    │    ├── auth_service.go
- │    │    ├── match_service.go
- │    │    └── room_service.go
+ │    │    ├── auth/
+ │    │    │    └── auth_service.go  # 계정/인증 도메인
+ │    │    ├── match/
+ │    │    │    └── match_service.go # 로비/매치메이킹
+ │    │    └── room/
+ │    │         └── room_service.go  # 룸/세션 관리
  │    │
  │    ├── repository/           # 데이터 저장소 접근 (DB/Redis 등)
  │    │    ├── user_repo.go
@@ -140,14 +140,10 @@ mygame/
         - REST → 회원가입, 로그인
         - WebSocket/gRPC → 실시간 게임 패킷 처리
     - app/
-        - 게임 도메인 단위로 코드 분리
-        - 예: `lobby`, `room`, `battle`
-        - 실제 게임 규칙과 로직을 담는 핵심 계층
-        - DDD(Domain Driven Design) 접근과 유사
+        - 서버 실행, 라우팅, 초기화 같은 것을 담당.
     - service/
         - 비즈니스 규칙/흐름 제어
         - 예: "로그인 시 토큰 발급 + Redis에 세션 등록"
-        - 여러 `repository` 나 `app` 도메인을 묶어 동작
     - repository/
         - DB, Redis 같은 저장소 접근
         - 순수하게 CRUD 담당
@@ -162,45 +158,3 @@ mygame/
     2. **실시간 처리 분리**: REST API와 WebSocket 같은 실시간 처리를 분리하면 유지보수 편리
     3. **확장성**: DB, Redis, MQ 같은 인프라 계층을 분리해 두면, 나중에 교체하거나 확장하기 쉬움
     4. **테스트 용이성**: Service, App, Repository를 분리하면 각각 단위 테스트가 쉬움
-
-- 간단한 흐름 예시
-
-사용자가 로그인 → 로비 입장까지 흐름을 보면:
-
-1. `api/http/login_handler.go`
-    - 요청 파싱 → `service.AuthService.Login()` 호출
-2. `service/auth_service.go`
-    - 비밀번호 검증 (repository.UserRepo)
-    - 세션 발급 (repository.SessionRepo)
-    - JWT 토큰 리턴
-3. `app/lobby/join.go`
-    - 로비 진입 처리 (도메인 규칙 적용)
-    - 이벤트 브로드캐스트
-
-- app과 service의 차이
-    - app
-        - 책임: 실제 도메인 로직(게임 규칙, 핵심 기능)을 구현
-        - 역할
-            - 게임, 룸, 로비, 배틀 등 실제 도메인 단위 기능
-            - 상태 관리, 이벤트 처리, 규칙 적용 등
-        - 특징
-            - 비즈니스 로직 중에서도 핵심 도메인 규칙에 집중
-            - service에서 호출됨
-
-- 요약 비교
-
-|구분|app|service|
-|---|---|--------|
-|역할|핵심 도메인 로직|비즈니스 흐름/조정|
-|책임|룰/게임 규칙 처리|여러 도메인+저장소를 묶어서 요청 처리|
-|호출 대상|내부 도메인 함수, 상태|app 도메인, repository|
-|호출 주체|service|handler|
-|테스트|단위 테스트(게임 로직)|통합 테스트, 흐름 테스트|
-
-- 간단한 흐름 예시
-    1. 클라이언트 → 로그인 요청
-    2. `api/http/login_handler.go` → Handler 호출
-    3. `service/auth_service.go` → 인증 로직 수행, 세션 생성, repository 호출
-    4. `app/account/` → 계정 상태 관리, 룸/게임 참여 처리
-
-즉 **Handler는 외부 인터페이스, Service는 요청 처리 흐름, App은 핵심 도메인 기능** 이라는 구조가 명확해집니다.
